@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BilimRank.uz — o‘quv markazlari ochiq reytingi</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="page">
+    <!-- Top bar -->
+    <header class="topbar">
+      <div class="wrap topbar-inner">
+        <a class="brand" href="/">
+          <span class="brand-mark">📚</span>
+          <span class="brand-name">bilimrank<span class="dot">.</span>uz</span>
+        </a>
+        <div class="tabs">
+          <button class="tab active" data-period="all">Barcha vaqt</button>
+          <button class="tab" data-period="today">Bugun</button>
+        </div>
+        <nav class="menu">
+          <a href="#" class="menu-a active">Reyting</a>
+          <a href="#about" class="menu-a">Haqida</a>
+          <a href="#rules" class="menu-a">Qoidalar</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <!-- Intro strip -->
+      <div class="strip">
+        <span class="pulse"></span>
+        <strong id="online">38</strong> onlayn
+        <span class="dot-sep">·</span>
+        <span><strong id="visits">8 240</strong> tashrif</span>
+        <span class="dot-sep">·</span>
+        <a href="#stats">statistika →</a>
+      </div>
+
+      <!-- Hero -->
+      <section class="hero">
+        <p class="eyebrow">O‘zbekiston bo‘ylab o‘quv markazlari</p>
+        <h1>Kim #1? <em>Ochiq reytingda</em> o‘z o‘rningizni egallang.</h1>
+        <p class="lead">Ingliz tili, IT, matematika, ota-ona kurslari — barcha markazlar bir maydonda raqobatlashadi.</p>
+      </section>
+
+      <!-- Two-column layout: bid + ranking -->
+      <div class="layout">
+        <!-- Left: bid panel (sticky on desktop) -->
+        <aside class="side">
+          <div class="bid-panel">
+            <div class="bid-label">TOP-1 uchun taklif</div>
+            <div class="bid-row">
+              <button type="button" id="btn-minus" class="circle">−</button>
+              <div class="bid-val">
+                <span id="bid-amount">1.8 mln</span>
+                <small>so‘m</small>
+              </div>
+              <button type="button" id="btn-plus" class="circle">+</button>
+            </div>
+            <p class="bid-note">Minimal oshirish +5%. 50 mingdan boshlashingiz mumkin.</p>
+            <form id="bid-form">
+              <label class="field">
+                <span>Markaz havolasi</span>
+                <input type="url" id="url-input" placeholder="sayt, Telegram yoki Instagram" required>
+              </label>
+              <label class="field">
+                <span>Yo‘nalish</span>
+                <select id="cat-select" required>
+                  <option value="">Tanlang</option>
+                  <option value="ingliz">Ingliz tili</option>
+                  <option value="it">IT / Dasturlash</option>
+                  <option value="matematika">Matematika</option>
+                  <option value="rus">Rus tili</option>
+                  <option value="otomaktab">Ota-ona / maktabga tayyorlov</option>
+                  <option value="cefr">CEFR / IELTS</option>
+                  <option value="boshqa">Boshqa</option>
+                </select>
+              </label>
+              <button type="submit" class="primary">O‘rinni egallash</button>
+            </form>
+          </div>
+
+          <!-- Oxirgi aktivlar (compact sidebar) -->
+          <div class="side-block">
+            <h3>Oxirgi aktivlar</h3>
+            <div id="activity-list" class="feed"></div>
+          </div>
+        </aside>
+
+        <!-- Right: ranking -->
+        <div class="main-col">
+          <div class="toolbar">
+            <div>
+              <h2 id="ranking-title">Umumiy reyting</h2>
+              <p id="ranking-sub" class="sub">Barcha vaqtlar bo‘yicha eng yuqori takliflar</p>
+            </div>
+          </div>
+
+          <div class="chips" id="filters">
+            <button class="chip active" data-cat="all">Barchasi</button>
+            <button class="chip" data-cat="ingliz">🇬🇧 Ingliz</button>
+            <button class="chip" data-cat="it">💻 IT</button>
+            <button class="chip" data-cat="matematika">📐 Matematika</button>
+            <button class="chip" data-cat="rus">🇷🇺 Rus tili</button>
+            <button class="chip" data-cat="otomaktab">👶 Tayyorlov</button>
+            <button class="chip" data-cat="cefr">🎯 IELTS</button>
+          </div>
+
+          <div id="ranking" class="list"></div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <section class="stats" id="stats">
+        <p>Loyiha ishga tushganidan beri</p>
+        <div class="stat-grid">
+          <div>
+            <div class="big" id="revenue">…</div>
+            <p>jami takliflar hajmi</p>
+          </div>
+          <div>
+            <div class="big" id="visits">…</div>
+            <p>tashriflar</p>
+          </div>
+          <div>
+            <div class="big" id="centers">…</div>
+            <p>o‘quv markazlari</p>
+          </div>
+        </div>
+      </section>
+
+      <footer class="foot">
+        <p>BilimRank · <a href="#about">Haqida</a> · <a href="#rules">Qoidalar</a></p>
+        <p class="muted">O‘quv markazlari uchun ochiq reyting</p>
+      </footer>
+    </div>
+  </div>
+  <!-- Modal -->
+  <div id="modal" class="modal" hidden>
+    <div class="modal-card">
+      <button id="modal-close" class="modal-x" type="button" aria-label="Yopish">×</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

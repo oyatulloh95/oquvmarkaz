@@ -1,0 +1,13 @@
+{
+  "name": "bilimrank",
+  "version": "1.0.0",
+  "private": true,
+  "description": "O'quv markazlari uchun ochiq reyting (BilimRank.uz)",
+  "scripts": {
+    "dev": "node backend/server.js",
+    "start": "node backend/server.js"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.0.1"
+  }
+}
