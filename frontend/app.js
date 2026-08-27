@@ -11,8 +11,8 @@ function nextBid(p) {
 async function loadData() {
   try {
     const [c, a] = await Promise.all([
-      fetch("/api/centers").then((r) => r.json()),
-      fetch("/api/activities").then((r) => r.json())
+      fetch("https://oquvmarkaz-production.up.railway.app/api/centers").then((r) => r.json()),
+      fetch("https://oquvmarkaz-production.up.railway.app/api/activities").then((r) => r.json())
     ]);
     ranking = [...c].sort((a, b) => b.price - a.price);
     activities = a;
@@ -30,7 +30,7 @@ async function loadData() {
 
 async function loadStats() {
   try {
-    const s = await fetch("/api/stats").then((r) => r.json());
+    const s = await fetch("https://oquvmarkaz-production.up.railway.app/api/stats").then((r) => r.json());
     document.getElementById("revenue").textContent = formatPrice(s.revenue) + " so‘m";
     document.getElementById("visits").textContent = s.visits.toLocaleString("uz-UZ");
     document.getElementById("centers").textContent = s.centers;
@@ -153,7 +153,7 @@ document.getElementById("bid-form").onsubmit = async (e) => {
   if (!url || !cat) return;
 
   try {
-    const res = await fetch("/api/centers", {
+    const res = await fetch("https://oquvmarkaz-production.up.railway.app/api/centers", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url, category: cat, price: currentBid })
@@ -213,7 +213,7 @@ window.takePlace = (id, price) => {
 
 window.raiseBid = async (id) => {
   try {
-    await fetch("/api/centers/" + id + "/raise", { method: "POST" });
+    await fetch("https://oquvmarkaz-production.up.railway.app/api/centers/" + id + "/raise", { method: "POST" });
     await loadData();
     currentBid = nextBid(ranking[0].price);
     updateBid();

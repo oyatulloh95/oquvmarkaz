@@ -30,8 +30,22 @@ const MIME = {
 };
 
 function sendJSON(res, status, data) {
-  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  res.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type"
+  });
   res.end(JSON.stringify(data));
+}
+
+function sendCORS(res) {
+  res.writeHead(204, {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type"
+  });
+  res.end();
 }
 
 function readBody(req) {
@@ -82,6 +96,9 @@ const server = http.createServer(async (req, res) => {
   const parsed = url.parse(req.url, true);
   const pathname = parsed.pathname;
   try {
+    if (req.method === "OPTIONS") {
+      return sendCORS(res);
+    }
     if (pathname.startsWith("/api/")) {
       await handleApi(req, res, pathname, parsed.query);
     } else {
