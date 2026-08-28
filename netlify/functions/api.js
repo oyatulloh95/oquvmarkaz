@@ -1,26 +1,52 @@
-const { getStore } = require("@netlify/blobs");
-const { processApi } = require("../../backend/api-core");
 const SEED = require("../../backend/seed");
+const { processApi } = require("../../backend/api-core");
 
 const STORE_NAME = "bilimrank-db";
 
-function getDbStore() {
-  return getStore({ name: STORE_NAME });
+let cachedDb = null;
+let blobStore = null;
+let blobChecked = false;
+
+async function getBlobStore() {
+  if (blobChecked) return blobStore;
+  blobChecked = true;
+  try {
+    const { getStore } = require("@netlify/blobs");
+    blobStore = getStore({ name: STORE_NAME });
+  } catch (e) {
+    blobStore = null;
+  }
+  return blobStore;
 }
 
 async function loadDB() {
-  const store = getDbStore();
-  let data = await store.get("db.json", { type: "json" });
-  if (!data || !data.centers) {
-    data = JSON.parse(JSON.stringify(SEED));
-    await store.set("db.json", JSON.stringify(data));
+  try {
+    const store = await getBlobStore();
+    if (store) {
+      const data = await store.get("db.json", { type: "json" });
+      if (data && data.centers) return data;
+      const seeded = JSON.parse(JSON.stringify(SEED));
+      await store.set("db.json", JSON.stringify(seeded));
+      return seeded;
+    }
+  } catch (e) {
+    // fall through to in-memory
   }
-  return data;
+  if (!cachedDb) cachedDb = JSON.parse(JSON.stringify(SEED));
+  return cachedDb;
 }
 
 async function saveDB(db) {
-  const store = getDbStore();
-  await store.set("db.json", JSON.stringify(db));
+  try {
+    const store = await getBlobStore();
+    if (store) {
+      await store.set("db.json", JSON.stringify(db));
+      return;
+    }
+  } catch (e) {
+    // fall through
+  }
+  cachedDb = JSON.parse(JSON.stringify(db));
 }
 
 function normalizePath(event) {
@@ -34,6 +60,19 @@ function normalizePath(event) {
 exports.handler = async (event, context) => {
   try {
     const method = (event.httpMethod || "GET").toUpperCase();
+
+    if (method === "OPTIONS") {
+      return {
+        statusCode: 204,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type"
+        },
+        body: ""
+      };
+    }
+
     const pathname = normalizePath(event);
 
     const query = {};
@@ -56,7 +95,12 @@ exports.handler = async (event, context) => {
 
     return {
       statusCode: result.status,
-      headers: { "Content-Type": "application/json; charset=utf-8" },
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
+      },
       body: JSON.stringify(result.json)
     };
   } catch (err) {
@@ -64,7 +108,7 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json; charset=utf-8" },
-      body: JSON.stringify({ error: "Server xatosi" })
+      body: JSON.stringify({ error: "Server xatosi", detail: err.message })
     };
   }
 };
