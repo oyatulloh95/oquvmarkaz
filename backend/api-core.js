@@ -1,3 +1,5 @@
+const SEED = require("./seed");
+
 const CATEGORIES = {
   ingliz: "Ingliz",
   it: "IT",
@@ -106,6 +108,61 @@ function processApi(ctx, db) {
     });
     changed = true;
     return { status: 200, json: center, changed };
+  }
+
+  if (method === "GET" && pathname === "/api/changes") {
+    const seedById = new Map(SEED.centers.map((c) => [c.id, c]));
+    const added = db.centers.filter((c) => !seedById.has(c.id));
+    const updated = db.centers
+      .filter((c) => seedById.has(c.id))
+      .filter((c) => {
+        const s = seedById.get(c.id);
+        return c.price !== s.price || c.time === "hozir" || c.isToday !== s.isToday;
+      })
+      .map((c) => ({ id: c.id, name: c.name, price: c.price, time: c.time, isToday: c.isToday }));
+    const activitiesAdded = db.activities.filter((a) => a.time === "hozir");
+    return {
+      status: 200,
+      json: {
+        addedCount: added.length,
+        added,
+        updatedCount: updated.length,
+        updated,
+        activitiesAddedCount: activitiesAdded.length,
+        activitiesAdded
+      },
+      changed: false
+    };
+  }
+
+  if (method === "POST" && pathname === "/api/clean-updates") {
+    const seedById = new Map(SEED.centers.map((c) => [c.id, c]));
+    let reverted = 0;
+    for (const c of db.centers) {
+      const s = seedById.get(c.id);
+      if (s && (c.price !== s.price || c.time === "hozir" || c.isToday !== s.isToday)) {
+        c.price = s.price;
+        c.isToday = s.isToday;
+        c.time = s.time;
+        reverted++;
+      }
+    }
+    const before = db.activities.length;
+    db.activities = db.activities.filter((a) => a.time !== "hozir");
+    const removedActivities = before - db.activities.length;
+    changed = reverted > 0 || removedActivities > 0;
+    return {
+      status: 200,
+      json: { message: "Yangilanishlar olib tashlandi", revertedCenters: reverted, removedActivities },
+      changed
+    };
+  }
+
+  if (method === "POST" && pathname === "/api/reset") {
+    db.centers = JSON.parse(JSON.stringify(SEED.centers));
+    db.activities = JSON.parse(JSON.stringify(SEED.activities));
+    changed = true;
+    return { status: 200, json: { message: "REST API orqali qo‘shilgan ma’lumotlar tozalandi" }, changed };
   }
 
   return { status: 404, json: { error: "API yo‘li topilmadi" }, changed: false };
