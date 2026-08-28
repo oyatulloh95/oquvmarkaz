@@ -1,4 +1,5 @@
 const API_BASE = "/api";
+const LS_KEY = "bilimrank_state_v1";
 
 let activities = [];
 let currentBid = 1800000;
@@ -10,35 +11,68 @@ function nextBid(p) {
   return Math.round(Number(p) * 1.05 / 10000) * 10000;
 }
 
+function readLocal() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_KEY)) || null;
+  } catch (e) {
+    return null;
+  }
+}
+function baseLocal() {
+  return { added: [], raised: {}, localActs: [] };
+}
+function ensureLocal() {
+  let s = readLocal();
+  if (!s) {
+    s = baseLocal();
+    writeLocal(s);
+  }
+  return s;
+}
+function writeLocal(s) {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(s));
+  } catch (e) {}
+}
+
 async function loadData() {
   try {
     const [c, a] = await Promise.all([
       fetch(API_BASE + "/centers").then((r) => r.json()),
       fetch(API_BASE + "/activities").then((r) => r.json())
     ]);
-    ranking = [...c].sort((a, b) => b.price - a.price);
-    activities = a;
+
+    const s = ensureLocal();
+    let merged = c.map((x) =>
+      s.raised[x.id] != null
+        ? { ...x, price: s.raised[x.id], isToday: true, time: "hozir" }
+        : x
+    );
+    merged = merged.concat(s.added);
+    ranking = merged.sort((a, b) => b.price - a.price);
+
+    activities = s.localActs.concat(a);
+
     if (ranking.length) {
       currentBid = nextBid(ranking[0].price);
       updateBid();
     }
     render();
     renderFeed();
-    loadStats();
+    renderStats();
   } catch (e) {
     console.error("Ma'lumotlarni yuklab bo'lmadi", e);
   }
 }
 
-async function loadStats() {
-  try {
-    const s = await fetch(API_BASE + "/stats").then((r) => r.json());
-    document.getElementById("revenue").textContent = formatPrice(s.revenue) + " so‘m";
-    document.getElementById("visits").textContent = s.visits.toLocaleString("uz-UZ");
-    document.getElementById("centers").textContent = s.centers;
-  } catch (e) {
-    console.error("Statistikani yuklab bo'lmadi", e);
-  }
+function renderStats() {
+  const revenue = ranking.reduce((sum, c) => sum + (Number(c.price) || 0), 0);
+  const visits =
+    ranking.reduce((sum, c) => sum + (Number(c.clicks) || 0), 0) + 8240;
+  document.getElementById("revenue").textContent =
+    formatPrice(revenue) + " so‘m";
+  document.getElementById("visits").textContent = visits.toLocaleString("uz-UZ");
+  document.getElementById("centers").textContent = ranking.length;
 }
 
 function formatPrice(n) {
@@ -60,8 +94,8 @@ function rankClass(i) {
 
 function getList() {
   let list = [...ranking];
-  if (currentPeriod === "today") list = list.filter(c => c.isToday);
-  if (currentFilter !== "all") list = list.filter(c => c.category === currentFilter);
+  if (currentPeriod === "today") list = list.filter((c) => c.isToday);
+  if (currentFilter !== "all") list = list.filter((c) => c.category === currentFilter);
   return list;
 }
 
@@ -121,7 +155,7 @@ function render() {
 
 function renderFeed() {
   const el = document.getElementById("activity-list");
-  el.innerHTML = activities.slice(0, 8).map(a => `
+  el.innerHTML = activities.slice(0, 8).map((a) => `
     <div class="feed-item">
       <div class="feed-ico">${a.logo}</div>
       <div>
@@ -166,6 +200,19 @@ document.getElementById("bid-form").onsubmit = async (e) => {
       return;
     }
     const item = await res.json();
+
+    const s = ensureLocal();
+    const isTop = !ranking.length || currentBid >= ranking[0].price;
+    s.added.push(item);
+    s.localActs.unshift({
+      name: item.name,
+      logo: item.logo,
+      amount: item.price,
+      action: isTop ? "TOP-1 o‘rinni egalladi" : "reytingga qo‘shildi",
+      time: "hozir"
+    });
+    writeLocal(s);
+
     await loadData();
     currentBid = nextBid(ranking[0].price);
     updateBid();
@@ -182,18 +229,18 @@ document.getElementById("bid-form").onsubmit = async (e) => {
   }
 };
 
-document.querySelectorAll(".tab").forEach(btn => {
+document.querySelectorAll(".tab").forEach((btn) => {
   btn.onclick = () => {
-    document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     currentPeriod = btn.dataset.period;
     render();
   };
 });
 
-document.querySelectorAll(".chip").forEach(btn => {
+document.querySelectorAll(".chip").forEach((btn) => {
   btn.onclick = () => {
-    document.querySelectorAll(".chip").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".chip").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     currentFilter = btn.dataset.cat;
     render();
@@ -214,14 +261,29 @@ window.takePlace = (id, price) => {
 };
 
 window.raiseBid = async (id) => {
+  const center = ranking.find((c) => c.id === id);
+  if (!center) return;
+  const newPrice = Math.round(center.price * 1.05 / 10000) * 10000;
+
+  // serverga ham xabar beramiz (agar ishlamasa ham local saqlanadi)
   try {
     await fetch(API_BASE + "/centers/" + id + "/raise", { method: "POST" });
-    await loadData();
-    currentBid = nextBid(ranking[0].price);
-    updateBid();
-  } catch (err) {
-    showModal("<h3>❌ Xatolik</h3><p>Serverga ulanishda xatolik yuz berdi.</p>");
-  }
+  } catch (err) {}
+
+  const s = ensureLocal();
+  s.raised[id] = newPrice;
+  s.localActs.unshift({
+    name: center.name,
+    logo: center.logo,
+    amount: newPrice,
+    action: "taklifini oshirdi",
+    time: "hozir"
+  });
+  writeLocal(s);
+
+  await loadData();
+  currentBid = nextBid(ranking[0].price);
+  updateBid();
 };
 
 function showModal(html) {

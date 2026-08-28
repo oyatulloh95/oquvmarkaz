@@ -626,6 +626,32 @@ body {
   font-size: 14px;
 }
 
+/* ===== INFO (About / Rules) ===== */
+.info {
+  max-width: 720px;
+  margin: 32px auto;
+  padding: 24px 28px;
+  background: var(--card, #fff);
+  border: 1px solid var(--line, #ececec);
+  border-radius: 18px;
+}
+.info h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.info p {
+  color: var(--text, #1a1a1a);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+.info ul,
+.info ol {
+  padding-left: 20px;
+  line-height: 1.8;
+  color: var(--muted, #555);
+}
+
 /* ===== STATS + FOOT ===== */
 .stats {
   text-align: center;
