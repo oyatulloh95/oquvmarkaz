@@ -2,6 +2,14 @@ const SEED = require("../../backend/seed");
 const { processApi } = require("../../backend/api-core");
 
 const STORE_NAME = "bilimrank-db";
+const ADMIN_PASS = process.env.ADMIN_PASSWORD || "admin123";
+
+const JSON_HEADERS = {
+  "Content-Type": "application/json; charset=utf-8",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, x-admin-key"
+};
 
 let cachedDb = null;
 let blobStore = null;
@@ -54,7 +62,26 @@ function normalizePath(event) {
   p = p.replace(/^\/\.netlify\/functions\/api/, "");
   if (!p) p = "/";
   if (!p.startsWith("/")) p = "/" + p;
+  if (!p.startsWith("/api")) p = "/api" + p;
   return p;
+}
+
+function getKey(event) {
+  const h = event.headers || {};
+  return h["x-admin-key"] || h["X-Admin-Key"] || "";
+}
+
+function isAuthed(event) {
+  return getKey(event) === ADMIN_PASS;
+}
+
+function isMutating(pathname) {
+  return (
+    pathname === "/api/centers" ||
+    /^\/api\/centers\/\d+\/raise$/.test(pathname) ||
+    pathname === "/api/reset" ||
+    pathname === "/api/clean-updates"
+  );
 }
 
 exports.handler = async (event, context) => {
@@ -67,13 +94,29 @@ exports.handler = async (event, context) => {
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-          "Access-Control-Allow-Headers": "Content-Type"
+          "Access-Control-Allow-Headers": "Content-Type, x-admin-key"
         },
         body: ""
       };
     }
 
     const pathname = normalizePath(event);
+
+    if (method === "GET" && pathname === "/api/admin/check") {
+      return {
+        statusCode: 200,
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ ok: isAuthed(event) })
+      };
+    }
+
+    if (method === "POST" && isMutating(pathname) && !isAuthed(event)) {
+      return {
+        statusCode: 401,
+        headers: JSON_HEADERS,
+        body: JSON.stringify({ error: "Faqat admin o‘zgartira oladi" })
+      };
+    }
 
     const query = {};
     if (event.queryStringParameters) {
@@ -95,19 +138,14 @@ exports.handler = async (event, context) => {
 
     return {
       statusCode: result.status,
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type"
-      },
+      headers: JSON_HEADERS,
       body: JSON.stringify(result.json)
     };
   } catch (err) {
     console.error(err);
     return {
       statusCode: 500,
-      headers: { "Content-Type": "application/json; charset=utf-8" },
+      headers: JSON_HEADERS,
       body: JSON.stringify({ error: "Server xatosi", detail: err.message })
     };
   }

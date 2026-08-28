@@ -747,3 +747,17 @@ body {
 .stat-grid .big { font-size: 30px; }
 .stat-grid > div { min-width: 120px; }
 
+/* ===== ADMIN ===== */
+.d-none { display: none !important; }
+.admin-only-note {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px dashed var(--line, #d8d8d8);
+  border-radius: 14px;
+  font-size: 14px;
+  color: var(--muted, #555);
+  line-height: 1.6;
+}
+.admin-only-note a { color: #5b5be0; font-weight: 600; }
+.bid-panel.is-locked { opacity: 0.6; }
+

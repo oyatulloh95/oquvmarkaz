@@ -1,5 +1,9 @@
 const API_BASE = "/api";
 const LS_KEY = "bilimrank_state_v1";
+const ADMIN_LS = "bilimrank_admin";
+
+let adminKey = "";
+let isAdmin = false;
 
 let activities = [];
 let currentBid = 1800000;
@@ -141,10 +145,12 @@ function render() {
         </div>
         <div class="right">
           <div class="price">${formatPrice(c.price)} so‘m</div>
+          ${isAdmin ? `
           <button class="btn-take" type="button" onclick="takePlace(${c.id},${next})">
             ${formatPrice(next)} so‘mga egallash
           </button>
           <button class="btn-up" type="button" onclick="raiseBid(${c.id})">Oshirish</button>
+          ` : ""}
         </div>
       </article>
     `;
@@ -184,6 +190,10 @@ document.getElementById("btn-minus").onclick = () => {
 
 document.getElementById("bid-form").onsubmit = async (e) => {
   e.preventDefault();
+  if (!isAdmin) {
+    openAdminLogin();
+    return;
+  }
   const url = document.getElementById("url-input").value.trim();
   const cat = document.getElementById("cat-select").value;
   if (!url || !cat) return;
@@ -191,7 +201,7 @@ document.getElementById("bid-form").onsubmit = async (e) => {
   try {
     const res = await fetch(API_BASE + "/centers", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-admin-key": adminKey },
       body: JSON.stringify({ url, category: cat, price: currentBid })
     });
     if (!res.ok) {
@@ -261,13 +271,20 @@ window.takePlace = (id, price) => {
 };
 
 window.raiseBid = async (id) => {
+  if (!isAdmin) {
+    openAdminLogin();
+    return;
+  }
   const center = ranking.find((c) => c.id === id);
   if (!center) return;
   const newPrice = Math.round(center.price * 1.05 / 10000) * 10000;
 
   // serverga ham xabar beramiz (agar ishlamasa ham local saqlanadi)
   try {
-    await fetch(API_BASE + "/centers/" + id + "/raise", { method: "POST" });
+    await fetch(API_BASE + "/centers/" + id + "/raise", {
+      method: "POST",
+      headers: { "x-admin-key": adminKey }
+    });
   } catch (err) {}
 
   const s = ensureLocal();
@@ -299,8 +316,94 @@ document.getElementById("modal").onclick = (e) => {
   if (e.target.id === "modal") hideModal();
 };
 
-loadData();
+async function checkAdmin(pass) {
+  try {
+    const r = await fetch(API_BASE + "/admin/check", {
+      headers: { "x-admin-key": pass }
+    });
+    const d = await r.json();
+    return d.ok === true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function openAdminLogin() {
+  showModal(`
+    <h3>🔒 Admin kirish</h3>
+    <form id="admin-login-form">
+      <label class="field">
+        <span>Parol</span>
+        <input type="password" id="admin-pass" placeholder="Admin paroli" required>
+      </label>
+      <button type="submit" class="primary">Kirish</button>
+      <p id="admin-err" class="err"></p>
+    </form>
+  `);
+  const form = document.getElementById("admin-login-form");
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const pass = document.getElementById("admin-pass").value;
+    const ok = await checkAdmin(pass);
+    if (ok) {
+      adminKey = pass;
+      isAdmin = true;
+      try { localStorage.setItem(ADMIN_LS, pass); } catch (e) {}
+      hideModal();
+      applyAdminUI();
+      await loadData();
+    } else {
+      document.getElementById("admin-err").textContent = "Parol noto‘g‘ri";
+    }
+  };
+  setTimeout(() => document.getElementById("admin-pass").focus(), 50);
+}
+
+function applyAdminUI() {
+  const panel = document.querySelector(".bid-panel");
+  const note = document.querySelector(".admin-only-note");
+  if (panel) panel.classList.toggle("d-none", !isAdmin);
+  if (note) note.classList.toggle("d-none", isAdmin);
+  const ab = document.getElementById("admin-btn");
+  if (ab) ab.textContent = isAdmin ? "Chiqish" : "Admin";
+  render();
+}
+
+document.getElementById("admin-btn").onclick = (e) => {
+  e.preventDefault();
+  if (isAdmin) {
+    isAdmin = false;
+    adminKey = "";
+    try { localStorage.removeItem(ADMIN_LS); } catch (e) {}
+    applyAdminUI();
+  } else {
+    openAdminLogin();
+  }
+};
+
+const adminLink = document.getElementById("admin-link");
+if (adminLink) {
+  adminLink.onclick = (e) => {
+    e.preventDefault();
+    openAdminLogin();
+  };
+}
+
+(async () => {
+  try {
+    const saved = localStorage.getItem(ADMIN_LS);
+    if (saved && (await checkAdmin(saved))) {
+      adminKey = saved;
+      isAdmin = true;
+    } else if (saved) {
+      try { localStorage.removeItem(ADMIN_LS); } catch (e) {}
+    }
+  } catch (e) {}
+  applyAdminUI();
+  await loadData();
+})();
 
 setInterval(() => {
   document.getElementById("online").textContent = 20 + Math.floor(Math.random() * 35);
 }, 7000);
+
